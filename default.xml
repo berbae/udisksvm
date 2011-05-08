@@ -63,7 +63,7 @@
         <arg>--mount</arg>
         <ref>DeviceFile</ref>
         <arg>--mount-options</arg>
-        <arg>sync,noatime,nodiratime,noexec,utf8=0</arg>
+        <arg>flush,noatime,nodiratime,noexec,nodev,utf8=0</arg>
     </command>
     <enabled_if>
      <and>
@@ -81,7 +81,7 @@
         <arg>--mount</arg>
         <ref>DeviceFile</ref>
         <arg>--mount-options</arg>
-        <arg>sync,noatime,nodiratime,noexec</arg>
+        <arg>sync,noatime,nodiratime,noexec,nodev</arg>
     </command>
     <enabled_if>
      <and>
@@ -101,7 +101,7 @@
         <arg>--mount</arg>
         <ref>DeviceFile</ref>
         <arg>--mount-options</arg>
-        <arg>ro,noatime,nodiratime,noexec</arg>
+        <arg>ro,noatime,nodiratime,noexec,nodev</arg>
     </command>
     <enabled_if>
      <and>
