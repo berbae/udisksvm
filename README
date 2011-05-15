@@ -16,14 +16,9 @@ udisks------->udisksvm-------->traydevice-------->systray icons
 In its present form it is simple and it only manages un-mounting/re-mounting of removable devices or eject optical disks, using only mouse clicks.
 The text tip when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed in a file manager.
 
-But other commands could be added in the default.xml configuration file of traydevice on more complicated conditions.
-
-!--------------------------------------------------------------------------------------------------------------!
-! BEFORE USING THE SCRIPT the configuration file for traydevice MUST BE COPIED INTO $HOME/.config/traydevice : !
-!                                                                                                              !
-!	install -D -m 644 /usr/share/udisksvm/default.xml $HOME/.config/traydevice/default.xml                 !
-!                                                                                                              !
-!--------------------------------------------------------------------------------------------------------------!
+The configuration file for traydevice is now /usr/share/udisksvm/udisksvm.xml
+There is no need to copy it in $HOME/.config, as the -c option of traydevice is now used.
+It can be edited under root to add other commands on more complicated conditions.
 
 The script works without hal but IT NEEDS DBUS RUNNING.
 So dbus should be present in the DAEMONS line of /etc/rc.conf file.
@@ -43,10 +38,10 @@ In $HOME/.config/openbox/autostart.sh these lines are needed :
 
 	udisksvm >/dev/null &
 
-The automount options in udisksvm script can be changed, and other file system types can be added with specific options as well.
-These file system types and options for mounting should be reported in the default.xml file of traydevice,
+The mount options in udisksvm script can be changed, and other file system types can be added with specific options as well.
+These file system types and options for mounting should be reported in the udisksvm.xml configuration file of traydevice,
 for it to correctly mount the devices in its right-click menu.
 
 This method can be considered as a starting point to a more complete management of removable media in a GUI oriented approach.
-But it can be used as is, to simply manage automounting, un-mounting and re-mounting of, for example, mass storage USB devices,
+But it can also be used as is, to simply manage automounting, un-mounting and re-mounting of, for example, mass storage USB devices,
 or for accessing data on optical CD/DVD disks.
