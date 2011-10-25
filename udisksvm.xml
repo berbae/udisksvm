@@ -146,7 +146,8 @@
     Eject optical disk
 -->
   <menuitem icon="gtk.STOCK_REMOVE" text="Eject optical disk">
-    <command executable="/usr/bin/eject">
+    <command executable="/usr/bin/udisks">
+        <arg>--eject</arg>
         <ref>DeviceFile</ref>
     </command>
     <enabled_if>

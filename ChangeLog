@@ -24,3 +24,4 @@
         * 1.4-0 :
 	Missing '-c $TRAYCONF' in the pgrep test for optical disks
 	Using (exec traydevice ...) & to launch traydevice
+	Using 'udisks --eject' instead of '/usr/bin/eject' in udisksvm.xml
