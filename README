@@ -8,12 +8,16 @@ udisks------->udisksvm-------->traydevice-------->systray icons
                  |                                     |
                  V                                     V
             automounting                        right-click menu
-                                                       |
+       (non optical disks only)                        |
                                                        |
                                                        V
 					    commands to device media
 
-In its present form it is simple and it only manages un-mounting/re-mounting of removable devices or eject optical disks, using only mouse clicks.
+The automounting is now only activated for non-optical disks.
+
+In its present form it is simple and it only manages mounting/unmounting of removable devices or eject unmounted optical disks,
+using only mouse clicks.
+
 The text tip when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed in a file manager.
 
 The configuration file for traydevice is now /usr/share/udisksvm/udisksvm.xml
