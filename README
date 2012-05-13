@@ -18,7 +18,8 @@ The automounting is now only activated for non-optical disks.
 In its present form it is simple and it only manages mounting/unmounting of removable devices or eject unmounted optical disks,
 using only mouse clicks.
 
-The text tip when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed in a file manager.
+The text tip when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed in a file manager
+after it has been mounted.
 
 The configuration file for traydevice is now /usr/share/udisksvm/udisksvm.xml
 There is no need to copy it in $HOME/.config, as the -c option of traydevice is now used.
@@ -33,7 +34,7 @@ To initiate a ConsoleKit session and a dbus instance, Openbox is started with :
 
 	exec ck-launch-session dbus-launch openbox-session
 
-In $HOME/.config/openbox/autostart.sh these lines are needed :
+In $HOME/.config/openbox/autostart these lines are needed :
 
 	# Detection of insertion of an optical disk
 	if ! pgrep -lf "udisks-daemon: polling /dev/sr0"; then

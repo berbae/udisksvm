@@ -66,11 +66,34 @@
     </icon>
     <icon icon="gtk.STOCK_CDROM">
       <displayed_if>
+       <and>
         <match key="DeviceIsOpticalDisc" bool="true"/>
+	<not>
+         <match key="IdLabel" string=""/>
+        </not>
+       </and>
       </displayed_if>
+      <!--
+	Tooltip text is "IdLabel" when there is one
+      -->
       <tooltip executable="/bin/echo"> 
         <arg>-n</arg>
         <ref>IdLabel</ref>
+      </tooltip>
+    </icon>
+    <icon icon="gtk.STOCK_CDROM">
+      <displayed_if>
+       <and>
+        <match key="DeviceIsOpticalDisc" bool="true"/>
+        <match key="IdLabel" string=""/>
+       </and>
+      </displayed_if>
+      <!--
+        Tooltip text is "DeviceFile" when there is no label
+      -->
+      <tooltip executable="/bin/echo"> 
+        <arg>-n</arg>
+        <ref>DeviceFile</ref>
       </tooltip>
     </icon>
   </iconmap>
@@ -131,6 +154,24 @@
     </enabled_if>
   </menuitem>
 <!--
+    Mount initially blank optical disk after burning
+-->
+  <menuitem icon="gtk.STOCK_ADD" text="Mount after burning blank disk">
+    <command executable="/usr/bin/udisks">
+        <arg>--mount</arg>
+        <ref>DeviceFile</ref>
+        <arg>--mount-options</arg>
+        <arg>ro,noatime,nodiratime,noexec,nodev</arg>
+    </command>
+    <enabled_if>
+     <and>
+      <match key="DeviceIsMounted" bool="false"/>
+      <match key="DeviceIsOpticalDisc" bool="true"/>
+      <match key="OpticalDiscIsBlank" bool="true"/>
+     </and>
+    </enabled_if>
+  </menuitem>
+<!--
     Unmount device
 -->
   <menuitem icon="gtk.STOCK_REMOVE" text="Unmount device">
@@ -151,7 +192,10 @@
         <ref>DeviceFile</ref>
     </command>
     <enabled_if>
+     <and>
+      <match key="DeviceIsMounted" bool="false"/>
       <match key="DeviceIsOpticalDisc" bool="true"/>
+     </and>
     </enabled_if>
   </menuitem>
 </traydevice>
