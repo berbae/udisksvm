@@ -138,7 +138,7 @@
 <!--
     Mount not vfat partition
 -->
-  <menuitem icon="gtk.STOCK_ADD" text="Mount not vfat disk">
+  <menuitem icon="gtk.STOCK_ADD" text="Mount other filesystem type">
     <command executable="/usr/bin/udisks">
         <arg>--mount</arg>
         <ref>DeviceFile</ref>
@@ -151,6 +151,9 @@
       <match key="DeviceIsOpticalDisc" bool="false"/>
       <not>
        <match key="IdType" string="vfat"/>
+      </not>
+      <not>
+       <match key="IdType" string="ntfs"/>
       </not>
      </and>
     </enabled_if>
