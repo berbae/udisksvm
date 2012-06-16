@@ -116,9 +116,29 @@
     </enabled_if>
   </menuitem>
 <!--
+    Mount ntfs disk
+-->
+  <menuitem icon="gtk.STOCK_ADD" text="Mount ntfs disk">
+    <command executable="/usr/bin/udisks">
+        <arg>--mount</arg>
+        <ref>DeviceFile</ref>
+        <arg>--mount-fstype</arg>
+        <arg>ntfs-3g</arg>
+        <arg>--mount-options</arg>
+        <arg>noatime,nodiratime,exec</arg>
+    </command>
+    <enabled_if>
+     <and>
+      <match key="DeviceIsMounted" bool="false"/>
+      <match key="DeviceIsOpticalDisc" bool="false"/>
+      <match key="IdType" string="ntfs"/>
+     </and>
+    </enabled_if>
+  </menuitem>
+<!--
     Mount not vfat partition
 -->
-  <menuitem icon="gtk.STOCK_ADD" text="Mount not vfat disk">
+  <menuitem icon="gtk.STOCK_ADD" text="Mount other filesystem type">
     <command executable="/usr/bin/udisks">
         <arg>--mount</arg>
         <ref>DeviceFile</ref>
@@ -131,6 +151,9 @@
       <match key="DeviceIsOpticalDisc" bool="false"/>
       <not>
        <match key="IdType" string="vfat"/>
+      </not>
+      <not>
+       <match key="IdType" string="ntfs"/>
       </not>
      </and>
     </enabled_if>
