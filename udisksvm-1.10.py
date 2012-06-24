@@ -56,7 +56,6 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
-signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
 def dbus_handler(connexion, sender, pobject, interface, signal, gparam, udata):
     device = gparam.unpack()[0]
