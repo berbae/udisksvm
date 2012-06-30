@@ -1,9 +1,9 @@
-The udisksvm script operates between udisks and a window manager with a mouse and a system tray available.
-It listens to events and if the conditions are met it mounts a removable media and passes the control to Traydevice in the GUI.
-Traydevice is a little desktop application displaying a systray icon and allowing to execute custom commands on the specified device.
-It can be find in the Arch User Repository (AUR) : https://aur.archlinux.org/packages.php?ID=32005
+The 'udisksvm' and 'traydvm' scripts operate between udisks and a window manager with a mouse and a system tray available.
+They listen to events and act accordingly with removable media.
+The 'traydvm' GUI utility is a script which displays a systray icon for a plugged-in device, with a right-click menu to perform
+actions on the device.
 
-udisks------->udisksvm-------->traydevice-------->systray icon
+udisks------->udisksvm----------->traydvm--------->systray icon
                  |                                     |
                  |                                     |
                  V                                     V
@@ -16,32 +16,29 @@ udisks------->udisksvm-------->traydevice-------->systray icon
 The automounting feature is only for non-optical disks.
 It can be disabled with the '-n', '--noauto' command line option.
 
-In its present form it can only manage mounting/unmounting of removable devices with one partition,
-or eject unmounted optical disks, using only mouse clicks.
+In its present form there are only three actions : 'Mount', 'Unmount', 'Eject'
+The 'Mount' action operates on devices with one partition,
+The 'Eject' action is only activated for an optical disk; it automatically unmounts it, if necessary, before ejection.
 
-The text tip when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed in a file manager
-after it has been mounted.
+The tooltip text when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed,
+if mounted, in a file manager.
 
-The default configuration file for traydevice is /usr/share/udisksvm/udisksvm.xml
-A local personal one can be used in place of it, if its path/name is given as a command line argument:
-udisksvm <path/to/local/traydevice/configfile.xml>
+The 'traydvm' utility has no configuration file, as the popup menu and the actions are predefined in the script.
 
-The script uses the udisks dbus API, so it needs dbus running.
+The 'udisksvm' and 'traydvm' scripts use the UDisks DBus API, so THEY NEED DBUS RUNNING, and UDisks installed.
 
-Here is an example of using it with Openbox launched by startx, and Tint2 with systray enabled.
-
-A ConsoleKit session and a dbus instance are needed, so Openbox is started with:
-
-	exec ck-launch-session dbus-launch --exit-with-session openbox-session
-
-In $HOME/.config/openbox/autostart this line will launch udisksvm without any output:
+For example, in Openbox and Tint2 with systray enabled, only add this line in $HOME/.config/openbox/autostart
+to launch udisksvm without any output:
 
 	udisksvm >/dev/null &
 
-The mount options in udisksvm script can be changed, and other file system types can be added with specific options as well.
-These file system types and options should be reported in a locally edited traydevice configuration file,
-for mounting the devices correctly in the right-click menu.
+To see output and errors from the script, run it in a console without the redirection to /dev/null;
+To have more verbosity, run it with the '-d' or '--debug' option.
 
-This method can be considered as a starting point to a more complete management of removable media in a GUI oriented approach.
-But it can also be used as is, to simply manage automounting, un-mounting and re-mounting of, for example, memory stick USB devices,
-or for accessing data on optical CD/DVD disks.
+The file system types and mount options are predefined, but the scripts are easily editable to change the choices made
+or to add other file system types with specific options.
+These file system types and options should be written in the two scripts 'udisksvm' and 'traydvm'.
+
+This method can be considered a starting point to a more complete management of removable media in a GUI oriented approach.
+But it can also be used as is, to simply automount, unmount or re-mount, for example, a USB memory stick or an external disk,
+or for accessing data on optical CD/DVD disks, only with mouse clicks.

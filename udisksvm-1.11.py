@@ -5,33 +5,45 @@
 ########################################
 import sys, os
 import argparse
+import signal
+import subprocess
+from gi.repository import Gio, GLib
+import gi
 
-_version = '1.10'
 
-default_traydconf = '/usr/share/udisksvm/udisksvm.xml'
+_version = '1.11'
+
 optical_disk_device = '/org/freedesktop/UDisks/devices/sr0'
 
-parser = argparse.ArgumentParser(description='A GUI UDisks wrapper', prog='udisksvm',
-                                 formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(description='A GUI UDisks wrapper', prog='udisksvm')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + _version)
 parser.add_argument('-n', '--noauto', help='do not automount',
                     action='store_true')
 parser.add_argument('-d', '--debug', help='show internal infos',
                     action='store_true')
-parser.add_argument('traydconf', nargs='?', default=default_traydconf,
-                    help='''\
-configuration file for traydevice
-(default: %(default)s)''')
 
 args = parser.parse_args()
 
-# configuration file for traydevice
-TRAYCONF = args.traydconf
-if not os.path.exists(TRAYCONF):
-    print("The traydevice configuration file '" + TRAYCONF + "' is not found...")
-    sys.exit(1)
+devnull = os.open(os.devnull, os.O_WRONLY)
 
-showinfos = args.debug
+# Set verbosity
+debug = args.debug
+if debug:
+    F_OUT = sys.stdout
+    F_ERR = sys.stderr
+else:
+    F_OUT = F_ERR = devnull
+
+# Check traydvm availability
+try:
+    traydvm_script = subprocess.check_output(['which', 'traydvm'], stderr=F_ERR)
+except subprocess.CalledProcessError:
+    print("The 'traydvm' utility is not found...")
+    sys.exit(1)
+else:
+    # Need to decode the byte string output
+    traydvm_script = traydvm_script[:-1].decode()
+
 automount = not args.noauto
 print('-'*50)
 if automount:
@@ -40,13 +52,7 @@ else:
     print('Automounting disabled')
 print('-'*50)
 
-import signal
-import subprocess
-from gi.repository import Gio, GLib
-
 loop = GLib.MainLoop()
-
-devnull = os.open(os.devnull, os.O_WRONLY)
 
 def signal_handler(signum, frame):
     print('*'*5, 'signal', signum, 'received', '*'*5)
@@ -62,6 +68,7 @@ def dbus_handler(connexion, sender, pobject, interface, signal, gparam, udata):
     print(signal, 'received from', device)
     print('-'*50)
     if signal in ['DeviceAdded', 'DeviceChanged']:
+        # Connect to UDisks DBus API and fetch device properties
         proproxy = Gio.DBusProxy.new_sync(bus, 0, None, 'org.freedesktop.UDisks',
                                           device, 'org.freedesktop.DBus.Properties', None)
         props = proproxy.GetAll('(s)', 'org.freedesktop.UDisks.Device')
@@ -73,9 +80,11 @@ def dbus_handler(connexion, sender, pobject, interface, signal, gparam, udata):
         hasmedia = props['DeviceIsMediaAvailable']
         opticaldisk = props['DeviceIsOpticalDisc']
         numaudiotracks = props['OpticalDiscNumAudioTracks']
+        isclosed = props['OpticalDiscIsClosed']
         idtype = props['IdType']
         partition = props['DeviceIsPartition']
-        if showinfos:
+
+        if debug:
             print('systeminternal =', systeminternal)
             print('devicefile =', devicefile)
             print('usage =', usage)
@@ -83,12 +92,35 @@ def dbus_handler(connexion, sender, pobject, interface, signal, gparam, udata):
             print('hasmedia =', hasmedia)
             print('opticaldisk =', opticaldisk)
             print('numaudiotracks =', numaudiotracks)
+            print('isclosed =', isclosed)
             print('idtype =', idtype)
             print('partition =', partition)
             print('-'*50)
 
+    def run_traydvm():
+        if subprocess.call(['pgrep', '-f', traydvm_script + ' ' + device], stdout=F_OUT, stderr=F_ERR):
+            try:
+                trayd = subprocess.Popen([traydvm_script, device], stdout=F_OUT, stderr=F_ERR)
+            except OSError as err:
+                print('Launching traydvm for', device, 'failed with error :')
+                print(err.strerror, '(errno :', str(err.errno) + ')')
+            else:
+                print('traydvm for', device, 'now running with pid :', trayd.pid)
+        else:
+            print('traydvm for', device, 'is already running...')
+
+        print('-'*50)
+
+    def kill_traydvm():
+        if subprocess.call(['pgrep', '-f', traydvm_script + ' ' + device], stdout=F_OUT, stderr=F_ERR):
+            print('traydvm for', device, 'is not running...')
+            print('-'*50)
+        elif not subprocess.call(['pkill', '-f', traydvm_script + ' ' + device], stdout=F_OUT, stderr=F_ERR):
+            print('traydvm for', device, 'now killed')
+            print('-'*50)
+
     if signal == 'DeviceAdded':
-        if  not systeminternal and (usage == "filesystem") and partition:
+        if not systeminternal and (usage == "filesystem") and partition:
             if automount:
                 print('Automounting', devicefile + '...')
 
@@ -107,51 +139,35 @@ def dbus_handler(connexion, sender, pobject, interface, signal, gparam, udata):
                                                       device, 'org.freedesktop.UDisks.Device', None)
                     mountpath = devproxy.FilesystemMount('(sas)', fstype, options)
                     # mountpath is a dbus.String
-                except dbus.exceptions.DBusException:
+                except gi._glib.GError:
                     value = sys.exc_info()[1]
-                    print('failed with error :', value)
+                    print('failed with error :')
+                    print(value)
                 else:
                     print('done at mountpath :', mountpath)
 
                 print('-'*50)
 
-            if subprocess.call(['pgrep', '-f', 'traydevice -c ' + TRAYCONF + ' ' + devicefile], stdout=devnull, stderr=devnull):
-                try:
-                    trayd = subprocess.Popen(["traydevice", "-c", TRAYCONF, devicefile], stdout=devnull, stderr=devnull)
-                except OSError as err:
-                    print('Launching traydevice for', devicefile, 'failed with error :')
-                    print(err.strerror, '(errno :', str(err.errno) + ')')
-                else:
-                    print('traydevice for', devicefile, 'now running with pid :', trayd.pid)
-            else:
-                print('traydevice for', devicefile, 'is already running...')
-
-            print('-'*50)
+            run_traydvm()
 
     elif signal == 'DeviceChanged':
-        if  not systeminternal and opticaldisk and hasmedia and not numaudiotracks:
-            if subprocess.call(['pgrep', '-f', 'traydevice -c ' + TRAYCONF + ' ' + devicefile], stdout=devnull, stderr=devnull):
-                try:
-                    trayd = subprocess.Popen(["traydevice", "-c", TRAYCONF, devicefile], stdout=devnull, stderr=devnull)
-                except OSError as err:
-                    print('Launching traydevice for', devicefile, 'failed with error :')
-                    print(err.strerror, '(errno :', str(err.errno) + ')')
-                else:
-                    print('traydevice for', devicefile, 'now running with pid :', trayd.pid)
-            else:
-                print('traydevice for', devicefile, 'is already running...')
+        if not systeminternal:
+            if opticaldisk and hasmedia and not numaudiotracks:
+                run_traydvm()
+            elif (opticaldisk and not isclosed) or not hasmedia:
+                kill_traydvm() 
 
-            print('-'*50)
     elif signal == 'DeviceRemoved':
-        pass
+        kill_traydvm()
 
+# Connect to DBus system instance
 bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
 
-# Creating the proxy for sr0 is required to launch the necessary polling
+# Creating the proxy for optical disk device is required to start the necessary polling for optical disk events
 optproxy = Gio.DBusProxy.new_sync(bus, 0, None, 'org.freedesktop.UDisks', optical_disk_device,
                                   'org.freedesktop.UDisks.Device', None)
 
-isubsc = bus.signal_subscribe(None, 'org.freedesktop.UDisks', None, None, None, Gio.DBusSignalFlags.NONE, dbus_handler, None)
+bus.signal_subscribe(None, 'org.freedesktop.UDisks', None, None, None, Gio.DBusSignalFlags.NONE, dbus_handler, None)
 
 loop.run()
 
