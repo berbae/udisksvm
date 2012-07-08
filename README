@@ -1,7 +1,8 @@
-The 'udisksvm' and 'traydvm' scripts operate between udisks and a window manager with a mouse and a system tray available.
-They listen to events and act accordingly with removable media.
-The 'traydvm' GUI utility is a script which displays a systray icon for a plugged-in device, with a right-click menu to perform
-actions on the device.
+The 'udisksvm' and 'traydvm' scripts operate between udisks and a window
+manager with a mouse and a system tray available. They listen to events and act
+accordingly with removable media.
+The 'traydvm' GUI utility is a script which displays a systray icon showing a
+plugged-in device, with a right-click menu to perform actions on it.
 
 udisks------->udisksvm----------->traydvm--------->systray icon
                  |                                     |
@@ -13,32 +14,41 @@ udisks------->udisksvm----------->traydvm--------->systray icon
                                                        V
 					    commands to device media
 
-The automounting feature is only for non-optical disks.
-It can be disabled with the '-n', '--noauto' command line option.
+The automounting feature is set by default, but only for non-optical disks.
+That can be disabled with the '-n', '--noauto' command line option.
 
 In its present form there are only three actions : 'Mount', 'Unmount', 'Eject'
 The 'Mount' action operates on devices with one partition,
-The 'Eject' action is only activated for an optical disk; it automatically unmounts it, if necessary, before ejection.
+The 'Eject' action is only activated for an unmounted optical disk
+(in UDisks2 there is no 'unmount' option for it).
 
-The tooltip text when the mouse pointer is on the systray icon gives the folder in /media where the media can be accessed,
-if mounted, in a file manager.
+The tooltip when the mouse pointer hovers over the icon gives the folder,
+normally in /run/media/<user_name>, where the media can be accessed, when
+mounted, in a file manager.
 
-The 'traydvm' utility has no configuration file, as the popup menu and the actions are predefined in the script.
+The 'traydvm' utility has no configuration file: the popup menu and the actions
+are predefined in the script.
 
-The 'udisksvm' and 'traydvm' scripts use the UDisks DBus API, so THEY NEED DBUS RUNNING, and UDisks installed.
+The 'udisksvm' and 'traydvm' scripts use the UDisks2 DBus API;
+so THEY NEED DBUS RUNNING, and UDisks2 installed.
 
-For example, in Openbox and Tint2 with systray enabled, only add this line in $HOME/.config/openbox/autostart
-to launch udisksvm without any output:
+For example, in Openbox and Tint2 with systray enabled, only add this line in
+$HOME/.config/openbox/autostart to launch udisksvm without any output:
 
 	udisksvm >/dev/null &
 
-To see output and errors from the script, run it in a console without the redirection to /dev/null;
-To have more verbosity, run it with the '-d' or '--debug' option.
+To see output and errors from the script, run it in a console without the
+redirection to /dev/null;
+to have more verbosity, run it with the '-d' or '--debug' option.
 
-The file system types and mount options are predefined, but the scripts are easily editable to change the choices made
-or to add other file system types with specific options.
-These file system types and options should be written in the two scripts 'udisksvm' and 'traydvm'.
+The file system types and mount options are predefined, and UDisks2 doesn't
+permit much choices presently: only 'flush' is available for 'vfat' file system
+and almost nothing, other than defaults, for other types.
+These file system types and options are written/coded in the two scripts
+'udisksvm' and 'traydvm'.
 
-This method can be considered a starting point to a more complete management of removable media in a GUI oriented approach.
-But it can also be used as is, to simply automount, unmount or re-mount, for example, a USB memory stick or an external disk,
-or for accessing data on optical CD/DVD disks, only with mouse clicks.
+This approach can be considered a starting point to a more complete management
+of removable media in a GUI oriented approach.
+But it can also be used as is, to simply automount, unmount or re-mount,
+for example, a USB memory stick or an external disk, or for accessing data on
+optical CD/DVD disks, only with mouse clicks.
