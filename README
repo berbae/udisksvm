@@ -18,9 +18,11 @@ The automounting feature is set by default, but only for non-optical disks.
 That can be disabled with the '-n', '--noauto' command line option.
 
 In its present form there are only three actions : 'Mount', 'Unmount', 'Eject'
-The 'Mount' action operates on devices with one partition,
+The 'Mount' action operates on data optical disks, and on block devices with
+plain partitions, ie not a container of other partitions or not contained in
+another partition.
 The 'Eject' action is only activated for an unmounted optical disk
-(in UDisks2 there is no 'unmount' option for it).
+(in UDisks2 there is no 'unmount' option for this method).
 
 The tooltip when the mouse pointer hovers over the icon gives the folder,
 normally in /run/media/<user_name>, where the media can be accessed, when
@@ -41,14 +43,35 @@ To see output and errors from the script, run it in a console without the
 redirection to /dev/null;
 to have more verbosity, run it with the '-d' or '--debug' option.
 
-The file system types and mount options are predefined, and UDisks2 doesn't
-permit much choices presently: only 'flush' is available for 'vfat' file system
-and almost nothing, other than defaults, for other types.
+-------------------------------------------------------------------------------
+WARNING: Gtk outputs error lines when the tooltip is shown:
+
+Gtk-CRITICAL **: gtk_widget_get_toplevel: assertion `GTK_IS_WIDGET (widget)' failed
+
+Though classified critical, that error message is harmless and without
+consequences; it results from the fact that a GtkStatusIcon is not a widget,
+but just a GObject; but apart from these messages nothing wrong happens.
+So I preferred to keep the tooltip feature with this minor Gtk annoyance.
+-------------------------------------------------------------------------------
+
+The file system types and mount options are predefined.
+Unhappily, UDisks2 does not permit much choices presently:
+only 'flush' is available for a 'vfat' file system, and almost nothing, other
+than defaults, for other types.
 These file system types and options are written/coded in the two scripts
 'udisksvm' and 'traydvm'.
+
+The traydvm script ignores all changes made to partitions or file
+system types or label, while it is running; if such changes are made
+on a device, while traydvm is running on it, the device has first to be
+plugged out/in to re-launch traydvm on it.
 
 This approach can be considered a starting point to a more complete management
 of removable media in a GUI oriented approach.
 But it can also be used as is, to simply automount, unmount or re-mount,
 for example, a USB memory stick or an external disk, or for accessing data on
 optical CD/DVD disks, only with mouse clicks.
+
+It can also be used to only show system tray icons with the '-n', '--noauto'
+command line option, leaving the automounting or manual mounting/unmounting
+to other tools or actions.
