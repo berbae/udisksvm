@@ -23,6 +23,7 @@ plain partitions, ie not a container of other partitions or not contained in
 another partition.
 The 'Eject' action is only activated for an unmounted optical disk
 (in UDisks2 there is no 'unmount' option for this method).
+And only one CD/DVD drive at /dev/sr0 is considered.
 
 The tooltip when the mouse pointer hovers over the icon gives the folder,
 normally in /run/media/<user_name>, where the media can be accessed, when
