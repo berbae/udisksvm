@@ -1,16 +1,14 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 ########################################
 # Name of the script : udisksvm
-# Author : Bernard Baeyens (berbae) 2012
+# Author : Bernard Baeyens (berbae) 2013
 ########################################
-from __future__ import print_function
-import os, sys, signal
+import os, sys
 import argparse
 import subprocess
 from gi.repository import UDisks, GLib, Gio
-import gi
 
-_version = '2.2.1'
+_version = '2.3.0'
 
 optical_disk_device = '/org/freedesktop/UDisks2/block_devices/sr0'
 
@@ -19,7 +17,11 @@ G_VARIANT_TYPE_VARDICT = GLib.VariantType.new('a{sv}')
 
 parser = argparse.ArgumentParser(description='A GUI UDisks wrapper', prog='udisksvm')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + _version)
-parser.add_argument('-n', '--noauto', help='do not automount',
+parser.add_argument('-a', '--auto', help='enable automounting for non optical disks',
+                    action='store_true')
+parser.add_argument('-n', '--noauto', help='not used as no automounting is the default',
+                    action='store_true')
+parser.add_argument('-s', '--silent', help='disable notification popup messages',
                     action='store_true')
 parser.add_argument('-d', '--debug', help='show internal infos',
                     action='store_true')
@@ -27,26 +29,14 @@ parser.add_argument('-d', '--debug', help='show internal infos',
 args = parser.parse_args()
 
 # Set verbosity
-devnull = os.open(os.devnull, os.O_WRONLY)
-
 debug = args.debug
 if debug:
     F_OUT = sys.stdout
     F_ERR = sys.stderr
 else:
-    F_OUT = F_ERR = devnull
+    F_OUT = F_ERR = subprocess.DEVNULL
 
-# Check traydvm availability
-try:
-    traydvm_script = subprocess.check_output(['which', 'traydvm'], stderr=F_ERR)
-except subprocess.CalledProcessError:
-    print("The 'traydvm' utility is not found...")
-    sys.exit(1)
-else:
-    # Need to decode the byte string output
-    traydvm_script = traydvm_script[:-1].decode()
-
-automount = not args.noauto
+automount = args.auto
 print('-'*50)
 if automount:
     print('Automounting for non optical devices enabled')
@@ -54,22 +44,43 @@ else:
     print('Automounting disabled')
 print('-'*50)
 
+popup = not args.silent
+if popup:
+    print('notifications enabled')
+else:
+    print('notifications disabled')
+print('-'*50)
+
+# Check traydvm availability
+try:
+    traydvm_script = subprocess.check_output(['which', 'traydvm'], stderr=F_ERR)
+except subprocess.CalledProcessError:
+    print("The 'traydvm' utility is not found...")
+    print('-'*50)
+    sys.exit(1)
+else:
+    # Need to decode the byte string output
+    traydvm_script = traydvm_script[:-1].decode()
+    if debug:
+        print('Found ',traydvm_script)
+        print('-'*50)
+    if popup:
+        traydvm_cmd = traydvm_script + ' '
+    else:
+        traydvm_cmd = traydvm_script + ' --silent '
+
 loop = GLib.MainLoop()
-
-def signal_handler(signum, frame):
-    print('*'*5, 'signal', signum, 'received', '*'*5)
-    print('-'*22, 'Bye!', '-'*22)
-    loop.quit()
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGQUIT, signal_handler)
 
 #############################################################
 def run_traydvm(obj_path):
-    if subprocess.call(['pgrep', '-f', traydvm_script + ' ' + obj_path], stdout=F_OUT, stderr=F_ERR):
+    if subprocess.call(['pgrep', '-f', traydvm_cmd + obj_path], stdout=F_OUT, stderr=F_ERR):
+        if popup:
+            traydvm_seq = [traydvm_script, obj_path]
+        else:
+            traydvm_seq = [traydvm_script, '--silent', obj_path]
+
         try:
-            trayd = subprocess.Popen([traydvm_script, obj_path], stdout=F_OUT, stderr=F_ERR)
+            trayd = subprocess.Popen(traydvm_seq, stdout=F_OUT, stderr=F_ERR)
         except OSError as err:
             print('Launching traydvm for', obj_path, 'failed with error :')
             print(err.strerror, '(errno :', str(err.errno) + ')')
@@ -82,13 +93,13 @@ def run_traydvm(obj_path):
 
 #############################################################
 def kill_traydvm(obj_path):
-    if subprocess.call(['pgrep', '-f', traydvm_script + ' ' + obj_path], stdout=F_OUT, stderr=F_ERR):
+    if subprocess.call(['pgrep', '-f', traydvm_cmd + obj_path], stdout=F_OUT, stderr=F_ERR):
         if debug:
             print('traydvm for', obj_path, 'is not running...')
             print('-'*50)
     else:
         try:
-            subprocess.call(['pkill', '-f', traydvm_script + ' ' + obj_path], stdout=F_OUT, stderr=F_ERR)
+            subprocess.call(['pkill', '-SIGINT', '-f', traydvm_cmd + obj_path], stdout=F_OUT, stderr=F_ERR)
         except OSError as err:
             print('Killing traydvm for', obj_path, 'failed with error :')
             print(err.strerror, '(errno :', str(err.errno) + ')')
@@ -102,8 +113,8 @@ def action_on_object(on_object, interface_added):
     print(obj_path)
     print('-'*50)
 
-    # optical disk is not managed here
-    if obj_path == optical_disk_device:
+    # Act only on non optical disk block devices
+    if not ('/org/freedesktop/UDisks2/block_devices/' in obj_path) or (obj_path == optical_disk_device):
         return
 
     iblock = on_object.get_interface('org.freedesktop.UDisks2.Block')
@@ -149,18 +160,14 @@ def action_on_object(on_object, interface_added):
 
             if not (iscontainer or iscontained):
 
-                if idtype == "vfat":
-                    fstype = idtype
-                    #list_options = 'flush, utf8=0'
+                fstype = idtype
+                list_options = ''
+                if fstype == 'vfat':
                     list_options = 'flush'
-                elif idtype == "ntfs":
-                    fstype = "ntfs-3g"
-                    list_options = ''
-                else:
-                    fstype = idtype
-                    list_options = ''
+                elif fstype == 'ext2':
+                    list_options = 'sync'
 
-                # Used to build the parameter GVariant of type (a{sv}) for call_sync
+                # Used to build the parameter GVariant of type a{sv} for call_mount_sync
                 param_builder = GLib.VariantBuilder.new(G_VARIANT_TYPE_VARDICT)
 
                 optname = GLib.Variant.new_string('fstype')             # s
@@ -176,18 +183,15 @@ def action_on_object(on_object, interface_added):
                 param_builder.add_value(newsv)
 
                 vparam = param_builder.end()                            # a{sv}
-                vtparam = GLib.Variant.new_tuple(vparam)                # (a{sv})
 
                 try:
-                    mountpath = ifilesystem.call_sync('Mount', vtparam, Gio.DBusCallFlags.NONE, -1, None)
-                    mountpath = mountpath.unpack()[0]
-                except gi._glib.GError:
+                    mountpath = ifilesystem.call_mount_sync(vparam, None)
+                except GLib.GError:
                     value = sys.exc_info()[1]
                     print('Mounting failed with error:')
                     print(value)
                 else:
                     print('Mounting done at mountpath:', mountpath)
-
             else:
                 print('Failed: not mounting a container or contained partition')
 
@@ -213,7 +217,8 @@ def handler_on_object_removed(manager, object_removed, udata):
     print('Removed : ', obj_path)
     print('-'*50)
 
-    kill_traydvm(obj_path)
+    if '/org/freedesktop/UDisks2/block_devices/' in obj_path:
+        kill_traydvm(obj_path)
 
 #############################################################
 def handler_on_changed(client, udata):
@@ -267,8 +272,6 @@ if proxy:
 
     # Detect disk insertion/removal
     client.connect("changed", handler_on_changed, None)
-    # The "interface-proxy-properties-changed" signal is not used
-    # because it causes a memory error in python
 
 # Connect to signals
 manager.connect("object-added", handler_on_object_added, None)
@@ -276,4 +279,10 @@ manager.connect("object-removed", handler_on_object_removed, None)
 manager.connect("interface-added", handler_on_interface_added, None)
 # The "interface-added" signal is needed if the Filesystem interface appears on an already added object
 
-loop.run()
+#############################################################
+try:
+    loop.run()
+except KeyboardInterrupt:
+    print('-'*22, 'Bye!', '-'*22)
+    loop.quit()
+

@@ -1,78 +1,84 @@
-The 'udisksvm' and 'traydvm' scripts operate between udisks and a window
+The 'udisksvm' and 'traydvm' scripts operate between udisks2 and a window
 manager with a mouse and a system tray available. They listen to events and act
 accordingly with removable media.
-The 'traydvm' GUI utility is a script which displays a systray icon showing a
-plugged-in device, with a right-click menu to perform actions on it.
+The 'traydvm' GUI utility displays a systray icon showing a plugged-in device,
+with a right-click menu to perform actions on it.
+The icon represents a file system/partition on the disk; so if there are
+several partitions, there are one icon for each file system on them.
+With a MBR partition table, only primary partitions are managed presently.
 
-udisks------->udisksvm----------->traydvm--------->systray icon
+udisks2------>udisksvm----------->traydvm--------->systray icon
                  |                                     |
                  |                                     |
                  V                                     V
-            automounting                        right-click menu
+           (automounting)                       right-click menu
        (non optical disks only)                        |
                                                        |
                                                        V
 					    commands to device media
+                                                       |
+                                                       |
+                                                       V
+					          notification
 
-The automounting feature is set by default, but only for non-optical disks.
-That can be disabled with the '-n', '--noauto' command line option.
+The automounting feature is disabled by default.
+It can be enabled for non-optical disks with the '-a', '--auto' command line
+option.
+The old '-n', '--noauto' option is still recognized but not used anymore.
+
+A notification pops up after a 'Mount' or 'Unmount' action  by the right-click
+menu.
+This feature is enabled by default, and can be disabled by the '-s',
+'--silent' command line option.
 
 In its present form there are only three actions : 'Mount', 'Unmount', 'Eject'
 The 'Mount' action operates on data optical disks, and on block devices with
 plain partitions, ie not a container of other partitions or not contained in
 another partition.
-The 'Eject' action is only activated for an unmounted optical disk
-(in UDisks2 there is no 'unmount' option for this method).
+The 'Eject' action is only activated for an unmounted optical disk.
 And only one CD/DVD drive at /dev/sr0 is considered.
 
-The tooltip when the mouse pointer hovers over the icon gives the folder,
-normally in /run/media/<user_name>, where the media can be accessed, when
-mounted, in a file manager.
+The tooltip when the mouse pointer hovers over the icon gives the device name
+and the folder name, normally in /run/media/<user_name>, where the mounted
+media can be accessed in a file manager.
 
 The 'traydvm' utility has no configuration file: the popup menu and the actions
 are predefined in the script.
 
-The 'udisksvm' and 'traydvm' scripts use the UDisks2 DBus API;
-so THEY NEED DBUS RUNNING, and UDisks2 installed.
+The 'udisksvm' and 'traydvm' scripts use the UDisks2 DBus API.
+If used in a systemd configuration (default in Arch Linux) they also need to
+be ran in an active systemd-logind session:
+
+        loginctl show-session $XDG_SESSION_ID
+
+should have a line with 'Active=yes'
 
 For example, in Openbox and Tint2 with systray enabled, only add this line in
-$HOME/.config/openbox/autostart to launch udisksvm without any output:
+$HOME/.config/openbox/autostart to launch udisksvm with default options and
+without text output:
 
 	udisksvm >/dev/null &
 
 To see output and errors from the script, run it in a console without the
 redirection to /dev/null;
-to have more verbosity, run it with the '-d' or '--debug' option.
+for more verbosity, run it with the '-d' or '--debug' option.
 
--------------------------------------------------------------------------------
-WARNING: Gtk outputs error lines when the tooltip is shown:
-
-Gtk-CRITICAL **: gtk_widget_get_toplevel: assertion `GTK_IS_WIDGET (widget)' failed
-
-Though classified critical, that error message is harmless and without
-consequences; it results from the fact that a GtkStatusIcon is not a widget,
-but just a GObject; but apart from these messages nothing wrong happens.
-So I preferred to keep the tooltip feature with this minor Gtk annoyance.
--------------------------------------------------------------------------------
-
-The file system types and mount options are predefined.
-Unhappily, UDisks2 does not permit much choices presently:
-only 'flush' is available for a 'vfat' file system, and almost nothing, other
-than defaults, for other types.
-These file system types and options are written/coded in the two scripts
-'udisksvm' and 'traydvm'.
+The file system types and mount options are controlled by UDisks2.
+UDisks2 is rather restrictive presently:
+'flush' is available for 'vfat' file system,
+'sync' for 'ext2' file system.
+These options are included in the scripts.
 
 The traydvm script ignores all changes made to partitions or file
 system types or label, while it is running; if such changes are made
 on a device, while traydvm is running on it, the device has first to be
 plugged out/in to re-launch traydvm on it.
 
-This approach can be considered a starting point to a more complete management
-of removable media in a GUI oriented approach.
-But it can also be used as is, to simply automount, unmount or re-mount,
-for example, a USB memory stick or an external disk, or for accessing data on
-optical CD/DVD disks, only with mouse clicks.
+These scripts can be extended to develop a more complete management of
+removable media in a GUI oriented approach.
+But they can simply be used as is, to automount, unmount or re-mount a USB
+memory stick or an external disk, or for accessing data on optical CD/DVD
+disks, only with mouse clicks.
 
-It can also be used to only show system tray icons with the '-n', '--noauto'
-command line option, leaving the automounting or manual mounting/unmounting
-to other tools or actions.
+They can also be used to only show system tray icons, with other tools to do
+automounting or manual mounting/unmounting.

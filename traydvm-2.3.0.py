@@ -1,40 +1,51 @@
 #!/usr/bin/python
 ########################################
 # Name of the script : traydvm
-# Author : Bernard Baeyens (berbae) 2012
+# Author : Bernard Baeyens (berbae) 2013
 ########################################
 import sys, os, re
 import argparse
-import signal
 from gi.repository import UDisks, GLib, Gio, Gtk
-import gi
-
-optical_disk_device = '/org/freedesktop/UDisks2/block_devices/sr0'
 
 # Used for parameter builder on method call
 G_VARIANT_TYPE_VARDICT = GLib.VariantType.new('a{sv}')
 
 parser = argparse.ArgumentParser(description='A systray utility for udisksvm')
 
+parser.add_argument('-s', '--silent', help='disable notification popup messages',
+                    action='store_true')
 parser.add_argument('object_path', help='the object to use')
 
 args = parser.parse_args()
 
 obj_path = args.object_path
-print('-----traydvm-----> Started for', obj_path)
+print('     traydvm: started for', obj_path)
 print('-'*50)
 
-# Use GLib MainLoop for using signal_handler to quit
+popup = not args.silent
+#############################################################
+# Prepare notifications if enabled
+#############################################################
+if popup:
+    try:
+        from gi.repository import Notify
+        Notify.init("traydvm")
+        notify_action=Notify.Notification.new("device action",None,"notification-device")
+    except:
+        value = sys.exc_info()[1]
+        print("     traydvm: error preparing notifications:")
+        print(value)
+        print('-'*50)
+        popup = False
+        print('     traydvm: notifications disabled')
+    else:
+        print('     traydvm: notifications initialized')
+else:
+    print('     traydvm: notifications disabled')
+print('-'*50)
+
+# Use GLib MainLoop which reacts to SIGINT to quit
 loop = GLib.MainLoop()
-
-def signal_handler(signum, frame):
-    print('*'*5, 'signal', signum, 'received', '*'*5)
-    print('-'*11, '-----traydvm-----> Bye!', '-'*14)
-    loop.quit()
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGQUIT, signal_handler)
 
 #############################################################
 # Connect to UDisks
@@ -54,6 +65,8 @@ iblock = proxy.get_interface('org.freedesktop.UDisks2.Block')
 
 devicefile = iblock.get_cached_property('Device').get_bytestring()
 devicefile = devicefile.decode()
+devicename = devicefile.split('/')[2]
+drive = iblock.get_cached_property('Drive').get_string()
 idtype = iblock.get_cached_property('IdType').get_string()
 label = iblock.get_cached_property('IdLabel').get_string()
 uuid = iblock.get_cached_property('IdUUID').get_string()
@@ -62,20 +75,22 @@ uuid = iblock.get_cached_property('IdUUID').get_string()
 ifilesystem = proxy.get_interface('org.freedesktop.UDisks2.Filesystem')
 
 #############################################################
-if obj_path != optical_disk_device:
+# Drive interface needed for optical disks
+dproxy = manager.get_object(drive)
+idrive = dproxy.get_interface('org.freedesktop.UDisks2.Drive')
+
+opticaldisk = idrive.get_cached_property('Optical').get_boolean()
+
+#############################################################
+if not opticaldisk:
+    # default value when there is no Partition interface
+    iscontainer = iscontained = False
+
     ipartition = proxy.get_interface('org.freedesktop.UDisks2.Partition')
 
-    iscontainer = ipartition.get_cached_property('IsContainer').get_boolean()
-    iscontained = ipartition.get_cached_property('IsContained').get_boolean()
-
-    opticaldisk = False
-else:
-    # Drive interface needed for Eject
-    drive = iblock.get_cached_property('Drive').get_string()
-    proxy = manager.get_object(drive)
-    idrive_optical = proxy.get_interface('org.freedesktop.UDisks2.Drive')
-
-    opticaldisk = True
+    if ipartition:
+        iscontainer = ipartition.get_cached_property('IsContainer').get_boolean()
+        iscontained = ipartition.get_cached_property('IsContained').get_boolean()
 
 #############################################################
 # Create systray icon
@@ -85,12 +100,11 @@ if opticaldisk:
 else:
     stockitem = Gtk.STOCK_HARDDISK
 
+tooltip = devicename
 if label:
-    tooltip = label
+    tooltip = tooltip + ' : ' + label
 elif uuid:
-    tooltip = uuid
-else:
-    tooltip = devicefile
+    tooltip = tooltip + ' : ' + uuid 
 
 trayicon = Gtk.StatusIcon()
 trayicon.set_from_stock(stockitem)
@@ -101,22 +115,20 @@ trayicon.set_tooltip_text(tooltip)
 #############################################################
 def on_menu_click(widget):
 
-    # Used to build the parameter GVariant of type (a{sv}) for call_sync to "Mount", "Unmount", "Eject"
+    # Used to build the parameter GVariant of type a{sv}
+    # for the call_mount_sync, call_unmount_sync and call_eject_sync methods
     param_builder = GLib.VariantBuilder.new(G_VARIANT_TYPE_VARDICT)
 
     action = widget.get_name()
     if action == "Mount":
         if opticaldisk or not (iscontainer or iscontained):
 
-            if idtype == 'vfat':
-                fstype = idtype
+            fstype = idtype
+            list_options = ''
+            if fstype == 'vfat':
                 list_options = 'flush'
-            elif idtype == "ntfs":
-                fstype = "ntfs-3g"
-                list_options = ''
-            else:
-                fstype = idtype
-                list_options = ''
+            elif fstype == 'ext2':
+                list_options = 'sync'
 
             optname = GLib.Variant.new_string('fstype')
             value = GLib.Variant.new_string(fstype)
@@ -130,23 +142,25 @@ def on_menu_click(widget):
             newsv = GLib.Variant.new_dict_entry(optname, vvalue)
             param_builder.add_value(newsv)
 
-            vparam = param_builder.end()
-            vtparam = GLib.Variant.new_tuple(vparam)                # (a{sv})
+            vparam = param_builder.end()                            # a{sv}
 
-            print('-----traydvm-----> Mounting', devicefile + '...')
-
+            print('     traydvm: Mounting', devicefile + '...')
             try:
-                mountpath = ifilesystem.call_sync('Mount', vtparam, Gio.DBusCallFlags.NONE, -1, None)
-                mountpath = mountpath.unpack()[0]
-            except gi._glib.GError:
-                value = sys.exc_info()
-                print('-----traydvm-----> Mounting failed with error:')
+                mountpath = ifilesystem.call_mount_sync(vparam, None)
+            except GLib.GError:
+                value = sys.exc_info()[1]
+                print('     traydvm: Mounting failed with error:')
                 print(value)
+                if popup:
+                    notify_action.update("Could not mount " + devicename,None,"dialog-error")
+                    notify_action.show()
             else:
-                print('-----traydvm-----> Mounting done at mountpath:', mountpath)
-
+                print('     traydvm: Mounting done at mountpath:', mountpath)
+                if popup:
+                    notify_action.update(devicename + " mounted :",mountpath,"dialog-information")
+                    notify_action.show()
         else:
-            print('-----traydvm-----> Failed: not mounting a container or contained partition')
+            print('     traydvm: Failed: not mounting a container or contained partition')
 
         print('-'*50)
 
@@ -158,19 +172,24 @@ def on_menu_click(widget):
         newsv = GLib.Variant.new_dict_entry(optname, vvalue)
         param_builder.add_value(newsv)
 
-        vparam = param_builder.end()
-        vtparam = GLib.Variant.new_tuple(vparam)                # (a{sv})
+        vparam = param_builder.end()                            # a{sv}
 
-        print('-----traydvm-----> Unmounting', devicefile + '...')
+        print('     traydvm: Unmounting', devicefile + '...')
 
         try:
-            ifilesystem.call_sync('Unmount',vtparam, Gio.DBusCallFlags.NONE, -1, None)
-        except gi._glib.GError:
+            ifilesystem.call_unmount_sync(vparam, None)
+        except GLib.GError:
             value = sys.exc_info()[1]
-            print('-----traydvm-----> Unmounting failed with error :')
+            print('     traydvm: Unmounting failed with error :')
             print(value)
+            if popup:
+                notify_action.update("Could not unmount " + devicename,"probably device busy","dialog-error")
+                notify_action.show()
         else:
-            print('-----traydvm-----> Unmounting done')
+            print('     traydvm: Unmounting done')
+            if popup:
+                notify_action.update(devicename + " unmounted",None,"dialog-information")
+                notify_action.show()
             
         print('-'*50)
 
@@ -183,19 +202,21 @@ def on_menu_click(widget):
         newsv = GLib.Variant.new_dict_entry(optname, vvalue)
         param_builder.add_value(newsv)
 
-        vparam = param_builder.end()
-        vtparam = GLib.Variant.new_tuple(vparam)                # (a{sv})
+        vparam = param_builder.end()                            # a{sv}
 
-        print('-----traydvm-----> Ejecting', devicefile + '...')
+        print('     traydvm: Ejecting', devicefile + '...')
 
         try:
-            idrive_optical.call_sync('Eject',vtparam, Gio.DBusCallFlags.NONE, -1, None)
-        except gi._glib.GError:
+            idrive.call_eject_sync(vparam, None)
+        except GLib.GError:
             value = sys.exc_info()[1]
-            print('-----traydvm-----> Ejecting failed with error :')
+            print('     traydvm: Ejecting failed with error :')
             print(value)
+            if popup:
+                notify_action.update("Could not eject disk from " + devicename,None,"dialog-error")
+                notify_action.show()
         else:
-            print('-----traydvm-----> Ejecting done')
+            print('     traydvm: Ejecting done')
 
         print('-'*50)
 
@@ -203,7 +224,7 @@ def on_menu_click(widget):
 # Create actions for the popup menu
 #############################################################
 title = re.sub('_', '__',tooltip) # To prevent using '_' for mnemonic letters in label
-action_title = Gtk.Action("Title", "      " + title + "      ", None, None)
+action_title = Gtk.Action("Title", "   " + title + "   ", None, None)
 action_mount = Gtk.Action("Mount", "Mount", None, Gtk.STOCK_ADD)
 action_mount.connect("activate", on_menu_click)
 action_unmount = Gtk.Action("Unmount", "Unmount", None, Gtk.STOCK_REMOVE)
@@ -261,5 +282,9 @@ def popup_menu(status_icon, button, activate_time, menu):
             
 trayicon.connect('popup-menu', popup_menu, uiManager.get_widget('/ui/udisksvm'))
 
-loop.run()
+try:
+    loop.run()
+except KeyboardInterrupt:
+    print('-'*17 ,'traydvm: Bye!', '-'*18)
+    loop.quit()
 
