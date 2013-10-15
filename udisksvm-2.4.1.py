@@ -10,7 +10,7 @@ import subprocess
 
 from gi.repository import UDisks, GLib, Gio
 
-_version = '2.4.0'
+_version = '2.4.1'
 
 BLOCK_DEVICES_PATH = '/org/freedesktop/UDisks2/block_devices/'
 OPTICAL_DISK_DEVICE = '/org/freedesktop/UDisks2/block_devices/sr0'

@@ -168,3 +168,5 @@
 	The tooltip feature of the GtkStatusIcon tray icon is disabled because
 	it prevents the popup menu from being shown correctly (probably a bug
 	in Gtk 3.10); but the tooltip text can be seen as the popup menu title
+        * 2.4.1-1 :
+	Fix typo in popup menu 'Unmount' instead of 'Unount'

@@ -9,7 +9,7 @@ import argparse
 
 from gi.repository import UDisks, GLib, Gio, Gtk
 
-_version = '2.4.0'
+_version = '2.4.1'
 
 # Used for parameter builder on method call
 G_VARIANT_TYPE_VARDICT = GLib.VariantType.new('a{sv}')
@@ -286,7 +286,7 @@ menucontent.append_item(gitem_mount)
 
 g_icon_remove_image= Gio.File.new_for_path(ICON_REMOVE)
 g_icon_remove = Gio.FileIcon.new(g_icon_remove_image)
-gitem_unmount = Gio.MenuItem.new("  Unount", "traydvm.action_unmount")
+gitem_unmount = Gio.MenuItem.new("  Unmount", "traydvm.action_unmount")
 gitem_unmount.set_icon(g_icon_remove)
 menucontent.append_item(gitem_unmount)
 
