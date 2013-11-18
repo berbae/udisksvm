@@ -10,10 +10,11 @@ import subprocess
 
 from gi.repository import UDisks, GLib, Gio
 
-_version = '2.4.1'
+_version = '2.4.2'
 
 BLOCK_DEVICES_PATH = '/org/freedesktop/UDisks2/block_devices/'
 OPTICAL_DISK_DEVICE = '/org/freedesktop/UDisks2/block_devices/sr0'
+MULTI_MEDIA_CARD_DEVICE = '/org/freedesktop/UDisks2/block_devices/mmcblk0'
 JOBS_PATH = '/org/freedesktop/UDisks2/jobs/'
 
 # Used for parameter builder on method call
@@ -148,7 +149,7 @@ def action_on_object(on_object, interface_added):
             print('devicefile =', devicefile)
             print('idtype =', idtype)
             print('-' * 50)
-        if hintsystem:
+        if hintsystem and not obj_path.startswith(MULTI_MEDIA_CARD_DEVICE):
             print('System device is not managed here')
             print('-' * 50)
             return
