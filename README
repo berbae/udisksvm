@@ -38,9 +38,10 @@ another partition.
 The 'Eject' action is only activated for an unmounted optical disk.
 And only one CD/DVD drive at /dev/sr0 is considered.
 
-The tooltip when the mouse pointer hovers over the icon gives the device name
-and the folder name, normally in /run/media/<user_name>, where the mounted
-media can be accessed in a file manager.
+The tooltip when the mouse pointer hovers over the icon gives the device name,
+the label or the UUID and the state of the device, with the mountpoint, normally
+in /run/media/<user_name>, where the mounted media can be accessed in a file
+manager.
 
 The 'traydvm' utility has no configuration file: the popup menu and the actions
 are predefined in the script.
