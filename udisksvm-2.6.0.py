@@ -8,9 +8,9 @@ import sys
 import argparse
 import subprocess
 
-from gi.repository import UDisks, GLib, Gio
+from gi.repository import UDisks, GLib
 
-_version = '2.4.2'
+_version = '2.6.0'
 
 BLOCK_DEVICES_PATH = '/org/freedesktop/UDisks2/block_devices/'
 OPTICAL_DISK_DEVICE = '/org/freedesktop/UDisks2/block_devices/sr0'
@@ -27,11 +27,8 @@ parser.add_argument('-v', '--version', action='version',
 parser.add_argument('-a', '--auto',
                     help='enable automounting for non optical disks',
                     action='store_true')
-parser.add_argument('-n', '--noauto',
-                    help='not used as no automounting is the default',
-                    action='store_true')
 parser.add_argument('-s', '--silent',
-                    help='disable notification popup messages',
+                    help='disable notification balloon messages',
                     action='store_true')
 parser.add_argument('-d', '--debug',
                     help='show internal infos',
@@ -55,9 +52,9 @@ else:
     print('Automounting disabled')
 print('-' * 50)
 
-popup = not args.silent
-if popup:
-    print('notifications enabled')
+balloon = not args.silent
+if balloon:
+    print('notification balloon messages enabled')
 else:
     print('notifications disabled')
 print('-' * 50)
@@ -76,7 +73,7 @@ else:
     if debug:
         print('Found ', traydvm_script)
         print('-' * 50)
-    if popup:
+    if balloon:
         traydvm_cmd = traydvm_script + ' '
     else:
         traydvm_cmd = traydvm_script + ' --silent '
@@ -87,7 +84,7 @@ loop = GLib.MainLoop()
 def run_traydvm(obj_path):
     if subprocess.call(['pgrep', '-f', traydvm_cmd + obj_path],
                        stdout=F_OUT, stderr=F_ERR):
-        if popup:
+        if balloon:
             traydvm_seq = [traydvm_script, obj_path]
         else:
             traydvm_seq = [traydvm_script, '--silent', obj_path]
@@ -230,7 +227,7 @@ def handler_on_interface_added(manager, on_object, interface_added, udata):
 def handler_on_object_removed(manager, object_removed, udata):
     obj_path = object_removed.get_object_path()
     if not obj_path.startswith(JOBS_PATH):
-        print('Removed : ', obj_path)
+        print('Removed : ' + obj_path)
         print('-' * 50)
     if obj_path.startswith(BLOCK_DEVICES_PATH):
         kill_traydvm(obj_path)
@@ -264,7 +261,6 @@ def handler_on_changed(client, udata):
         else:
             kill_traydvm(OPTICAL_DISK_DEVICE)
 
-#############################################################
 # Connect to UDisks
 client = UDisks.Client.new_sync(None)
 
@@ -302,9 +298,8 @@ manager.connect("interface-added", handler_on_interface_added, None)
 # The "interface-added" signal is needed if the Filesystem interface appears
 # on an already added object.
 
-#############################################################
 try:
-    loop.run()
+    sys.exit(loop.run())
 except KeyboardInterrupt:
-    print('-' * 22, 'Bye!', '-' * 22)
+    print('\n' + '-' * 22, 'Bye!', '-' * 22)
     loop.quit()
